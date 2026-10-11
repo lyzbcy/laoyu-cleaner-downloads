@@ -46,7 +46,20 @@ binary=app/'Contents/MacOS/LaoyuCleaner';architecture=run(['/usr/bin/lipo','-arc
 if architecture!=({'x64':'x86_64','arm64':'arm64'}[ARCH]):raise SystemExit('Application architecture mismatch')
 smoke=subprocess.run([str(binary),'--smoke','--disable-gpu','--in-process-gpu'],capture_output=True,text=True,timeout=180,env={**os.environ,'LAOYU_CI':'1'})
 (OUT/'ui-smoke.log').write_text(smoke.stdout+'\n'+smoke.stderr)
-if smoke.returncode!=0:raise SystemExit(f'Packaged UI exited {smoke.returncode}; see out/ui-smoke.log')
+if smoke.returncode!=0:
+    # Diagnostic copy only. Never package or publish altered application bytes.
+    import tempfile
+    for log in Path(tempfile.gettempdir()).glob('laoyu-cleaner-smoke-*/logs/startup-error.json'):
+        shutil.copy2(log,OUT/(log.parent.parent.name+'-startup.json'))
+    main=ROOT/'payload/src/main.cjs';original=main.read_text()
+    main.write_text(original.replace("}).catch(async e=>{try{", "}).catch(async e=>{console.error('DIAGNOSTIC_ONLY',e.stack);try{"))
+    run(['npm','exec','--yes','--package=@electron/asar@3.4.1','--','asar','pack',ROOT/'payload',ROOT/'diagnostic.asar'],timeout=180)
+    shutil.copy2(ROOT/'diagnostic.asar',resources/'app.asar')
+    run(['/usr/bin/codesign','--force','--deep','--sign','-',app])
+    diagnostic=subprocess.run([str(binary),'--smoke','--disable-gpu','--in-process-gpu'],capture_output=True,text=True,timeout=180,env={**os.environ,'LAOYU_CI':'1'})
+    (OUT/'diagnostic-only.log').write_text(diagnostic.stdout+'\n'+diagnostic.stderr)
+    shutil.copy2(ROOT/'app.asar',resources/'app.asar');main.write_text(original)
+    raise SystemExit(f'Unmodified packaged UI exited {smoke.returncode}; diagnostic-only log collected; no Mac ZIP published')
 receipt_path=next((line.split('=',1)[1] for line in smoke.stdout.splitlines() if line.startswith('SMOKE_OUTPUT=')),None)
 if not receipt_path:raise SystemExit('Missing actual packaged UI receipt')
 receipt=json.loads((Path(receipt_path)/'ui-smoke.json').read_text())
