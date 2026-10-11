@@ -1,0 +1,50 @@
+name: Build and verify macOS packages
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published Windows payload version
+        required: true
+        type: string
+      windows_sha256:
+        description: Verified Windows ZIP SHA256
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate explicit inputs
+        env:
+          VERSION: ${{ inputs.version }}
+          SHA256: ${{ inputs.windows_sha256 }}
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$SHA256" =~ ^[a-f0-9]{64}$ ]]
+      - name: Assemble and test on real macOS
+        env:
+          APP_VERSION: ${{ inputs.version }}
+          WINDOWS_SHA256: ${{ inputs.windows_sha256 }}
+          APP_ARCH: ${{ matrix.arch }}
+        run: python3 ci/build.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-${{ matrix.arch }}-${{ inputs.version }}
+          path: out/
+          retention-days: 30
