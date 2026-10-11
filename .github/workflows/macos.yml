@@ -11,7 +11,7 @@ on:
         required: true
         type: string
 permissions:
-  contents: read
+  contents: write
 jobs:
   mac:
     strategy:
@@ -42,6 +42,30 @@ jobs:
           WINDOWS_SHA256: ${{ inputs.windows_sha256 }}
           APP_ARCH: ${{ matrix.arch }}
         run: python3 ci/build.py
+      - name: Publish only verified macOS packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ inputs.version }}
+          APP_ARCH: ${{ matrix.arch }}
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib,hashlib
+          r=json.loads(pathlib.Path('out/macos-receipt.json').read_text())
+          assert r['version']==os.environ['APP_VERSION'] and r['arch']==os.environ['APP_ARCH']
+          assert r['ui']=='PASS' and r['recycleRestore']=='PASS'
+          assert hashlib.sha256(pathlib.Path('out',r['name']).read_bytes()).hexdigest()==r['sha256']
+          PY
+          gh release upload "v$APP_VERSION" "out/LaoyuCleaner-macOS-$APP_ARCH.zip" "out/SHA256SUMS-macOS-$APP_ARCH.txt" --repo lyzbcy/laoyu-cleaner-downloads
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence-${{ matrix.arch }}-${{ inputs.version }}
+          path: |
+            out/*.json
+            out/*.png
+            out/*.log
+            out/*.txt
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         if: always()
         with:
