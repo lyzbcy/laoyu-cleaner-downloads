@@ -2,7 +2,7 @@
 
 [下载 Windows / macOS Intel / Apple Silicon](https://github.com/lyzbcy/laoyu-cleaner-downloads/releases/tag/v0.1.3)
 
-Windows 解压后双击 LaoyuCleaner.exe；Mac 按芯片选择 ZIP，解压运行 app。Mac 包当前 ad-hoc 签名，尚未 Developer ID 公证；普通电脑首次打开未验收，优先由小范围用户试用。
+Windows 解压后双击 LaoyuCleaner.exe；Mac 需要 macOS 13 或更高版本（Electron 44 运行时要求），按芯片选择 ZIP，解压运行 app。Mac 包当前 ad-hoc 签名，尚未 Developer ID 公证；普通电脑首次打开未验收，优先由小范围用户试用。
 
 默认只读诊断、默认不选清理项。用户逐项确认后仅移到系统回收站/废纸篓，不自动清空。个人文档、下载、桌面与系统核心不自动清理；不自动迁移。缓存可能联网重建，移动量不是已释放空间。
 
